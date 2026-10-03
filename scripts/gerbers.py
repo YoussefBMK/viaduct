@@ -16,13 +16,7 @@ from ._kicad import DEFAULT_BUILD, PROJECT_ROOT, KicadError, find_pcb, run
 
 # Two-layer default. Override with --layers for 4+ layer stackups, e.g.
 # F.Cu,In1.Cu,In2.Cu,B.Cu,F.Paste,...
-DEFAULT_LAYERS = (
-    "F.Cu,B.Cu,"
-    "F.Paste,B.Paste,"
-    "F.Silkscreen,B.Silkscreen,"
-    "F.Mask,B.Mask,"
-    "Edge.Cuts"
-)
+DEFAULT_LAYERS = "F.Cu,B.Cu,F.Paste,B.Paste,F.Silkscreen,B.Silkscreen,F.Mask,B.Mask,Edge.Cuts"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -58,6 +52,10 @@ def main(argv: list[str] | None = None) -> int:
         pcb = args.pcb or find_pcb(args.build)
     except KicadError as exc:
         print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+    if not pcb.is_file():
+        print(f"error: no such board: {pcb}", file=sys.stderr)
         return 2
 
     out_dir = args.output or PROJECT_ROOT / "build" / "fab" / args.build

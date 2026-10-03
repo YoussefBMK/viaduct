@@ -16,7 +16,7 @@ import statistics
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -72,7 +72,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"    median {results[name]['median_s']}s  exits={results[name]['exit_codes']}")
 
     record = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "platform": f"{platform.system()} {platform.release()}",
         "python": platform.python_version(),
         "stages": results,
@@ -81,7 +81,7 @@ def main(argv: list[str] | None = None) -> int:
     output = args.output
     if output is None:
         RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         output = RESULTS_DIR / f"bench-{stamp}.json"
 
     output.parent.mkdir(parents=True, exist_ok=True)

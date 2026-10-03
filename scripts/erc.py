@@ -56,16 +56,21 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
+    if args.sch is not None and not args.sch.is_file():
+        print(f"error: no such schematic: {args.sch}", file=sys.stderr)
+        return 2
+
     if schematic is None:
         message = (
-            f"No .kicad_sch found for build '{args.build}'. atopile does not generate one; "
-            "rely on the ERC that `ato build` runs instead."
+            f"ERC NOT RUN (not applicable): no .kicad_sch found for build '{args.build}'. "
+            "This is NOT a pass -- nothing was checked. atopile does not generate a "
+            "schematic; the ERC that `ato build` runs is the one that covers an .ato design."
         )
         if args.allow_missing:
-            print(f"ERC: skipped -- {message}")
+            print(f"{message} Treated as success because --allow-missing was given.")
             return 0
-        print(f"error: {message}", file=sys.stderr)
-        return 2
+        print(message, file=sys.stderr)
+        return 3
 
     report = report_path(f"erc-{args.build}", ".json")
     severity = ["--severity-error"]

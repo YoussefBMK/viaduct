@@ -67,6 +67,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
+    if not pcb.is_file():
+        print(f"error: no such board: {pcb}", file=sys.stderr)
+        return 2
+
     report = report_path(f"drc-{args.build}", ".json")
     flags = ["--severity-error"]
     if args.warnings_are_errors:

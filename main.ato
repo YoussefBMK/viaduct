@@ -1,0 +1,23 @@
+"""Minimal smoke-test board.
+
+This is NOT a real design. It exists so the toolchain -- `ato build`, the
+kicad-cli wrappers in scripts/, and benchmarks/ -- has something in-repo to run
+against. Replace it when actual circuit work starts.
+
+Two test points bridged together. Deliberately no resistor, capacitor or any
+other part with a value: those are resolved by atopile's part picker, which in
+0.15.x requires `ato auth login` and a network round-trip. Keeping the fixture
+pick-free is what lets `ato build` run offline and unauthenticated in CI.
+
+TestPoint is also used rather than a connector because the standard library
+ships no connector module, and pulling one from the package registry would
+reintroduce that same network dependency.
+"""
+
+import TestPoint
+
+module App:
+    tp_a = new TestPoint
+    tp_b = new TestPoint
+
+    tp_a.contact ~ tp_b.contact

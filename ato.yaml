@@ -6,8 +6,7 @@ paths:
 
 builds:
   default:
-    # NOTE: main.ato does not exist yet -- no circuit has been written.
-    # `ato build` will fail until it defines `module App`.
+    # main.ato is a smoke-test fixture, not a real design -- see its docstring.
     entry: main.ato:App
     # Fail the build on DRC violations rather than only reporting them.
     fail_on_drcs: true
