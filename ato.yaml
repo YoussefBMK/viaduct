@@ -1,0 +1,20 @@
+requires-atopile: "^0.15.9"
+
+paths:
+  src: ./
+  layout: ./layouts
+
+builds:
+  default:
+    # NOTE: main.ato does not exist yet -- no circuit has been written.
+    # `ato build` will fail until it defines `module App`.
+    entry: main.ato:App
+    # Fail the build on DRC violations rather than only reporting them.
+    fail_on_drcs: true
+
+dependencies: []
+
+# Only needed if this board is published as a reusable package.
+# package:
+#   identifier: viaduct/viaduct
+#   version: "0.1.0"
