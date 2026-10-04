@@ -2,7 +2,7 @@
   (version "D")
   (design
     (source "viaduct_v0.py")
-    (date "10/04/2026 06:05 PM")
+    (date "10/04/2026 08:31 PM")
     (tool "SKiDL (2.3.0)")
     (sheet
       (number 1)
@@ -57,7 +57,7 @@
         (field
           (name "SKiDL Tag") "C1")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:168"))
+          (name "SKiDL Line") "viaduct_v0.py:190"))
       (libsource
         (lib "Device")
         (part "C"))
@@ -81,7 +81,7 @@
         (field
           (name "SKiDL Tag") "C2")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:170"))
+          (name "SKiDL Line") "viaduct_v0.py:193"))
       (libsource
         (lib "Device")
         (part "C"))
@@ -105,7 +105,7 @@
         (field
           (name "SKiDL Tag") "C3")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:208"))
+          (name "SKiDL Line") "viaduct_v0.py:233"))
       (libsource
         (lib "Device")
         (part "C"))
@@ -129,7 +129,7 @@
         (field
           (name "SKiDL Tag") "C4")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:210"))
+          (name "SKiDL Line") "viaduct_v0.py:236"))
       (libsource
         (lib "Device")
         (part "C"))
@@ -153,7 +153,7 @@
         (field
           (name "SKiDL Tag") "C5")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:228"))
+          (name "SKiDL Line") "viaduct_v0.py:261"))
       (libsource
         (lib "Device")
         (part "C"))
@@ -177,7 +177,7 @@
         (field
           (name "SKiDL Tag") "C6")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:367"))
+          (name "SKiDL Line") "viaduct_v0.py:438"))
       (libsource
         (lib "Device")
         (part "C"))
@@ -201,7 +201,7 @@
         (field
           (name "SKiDL Tag") "C7")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:369"))
+          (name "SKiDL Line") "viaduct_v0.py:446"))
       (libsource
         (lib "Device")
         (part "C"))
@@ -225,7 +225,7 @@
         (field
           (name "SKiDL Tag") "D1")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:397"))
+          (name "SKiDL Line") "viaduct_v0.py:482"))
       (libsource
         (lib "Device")
         (part "LED"))
@@ -249,7 +249,7 @@
         (field
           (name "SKiDL Tag") "J1")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:78"))
+          (name "SKiDL Line") "viaduct_v0.py:83"))
       (libsource
         (lib "Connector")
         (part "USB_C_Receptacle_USB2.0_16P"))
@@ -273,7 +273,7 @@
         (field
           (name "SKiDL Tag") "R1")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:108"))
+          (name "SKiDL Line") "viaduct_v0.py:126"))
       (libsource
         (lib "Device")
         (part "R"))
@@ -297,7 +297,7 @@
         (field
           (name "SKiDL Tag") "R2")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:110"))
+          (name "SKiDL Line") "viaduct_v0.py:129"))
       (libsource
         (lib "Device")
         (part "R"))
@@ -321,7 +321,7 @@
         (field
           (name "SKiDL Tag") "R3")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:226"))
+          (name "SKiDL Line") "viaduct_v0.py:258"))
       (libsource
         (lib "Device")
         (part "R"))
@@ -345,7 +345,7 @@
         (field
           (name "SKiDL Tag") "R4")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:252"))
+          (name "SKiDL Line") "viaduct_v0.py:292"))
       (libsource
         (lib "Device")
         (part "R"))
@@ -369,7 +369,7 @@
         (field
           (name "SKiDL Tag") "R5")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:380"))
+          (name "SKiDL Line") "viaduct_v0.py:463"))
       (libsource
         (lib "Device")
         (part "R"))
@@ -393,7 +393,7 @@
         (field
           (name "SKiDL Tag") "R6")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:382"))
+          (name "SKiDL Line") "viaduct_v0.py:466"))
       (libsource
         (lib "Device")
         (part "R"))
@@ -417,7 +417,7 @@
         (field
           (name "SKiDL Tag") "R7")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:399"))
+          (name "SKiDL Line") "viaduct_v0.py:483"))
       (libsource
         (lib "Device")
         (part "R"))
@@ -441,7 +441,7 @@
         (field
           (name "SKiDL Tag") "SW1")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:237"))
+          (name "SKiDL Line") "viaduct_v0.py:271"))
       (libsource
         (lib "Switch")
         (part "SW_Push"))
@@ -465,7 +465,7 @@
         (field
           (name "SKiDL Tag") "SW2")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:256"))
+          (name "SKiDL Line") "viaduct_v0.py:297"))
       (libsource
         (lib "Switch")
         (part "SW_Push"))
@@ -489,7 +489,7 @@
         (field
           (name "SKiDL Tag") "U1")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:126"))
+          (name "SKiDL Line") "viaduct_v0.py:146"))
       (libsource
         (lib "Power_Protection")
         (part "USBLC6-2SC6"))
@@ -513,7 +513,7 @@
         (field
           (name "SKiDL Tag") "U2")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:145"))
+          (name "SKiDL Line") "viaduct_v0.py:166"))
       (libsource
         (lib "Regulator_Linear")
         (part "AP2112K-3.3"))
@@ -537,7 +537,7 @@
         (field
           (name "SKiDL Tag") "U3")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:190"))
+          (name "SKiDL Line") "viaduct_v0.py:214"))
       (libsource
         (lib "RF_Module")
         (part "ESP32-S3-WROOM-1"))
@@ -561,7 +561,7 @@
         (field
           (name "SKiDL Tag") "U4")
         (field
-          (name "SKiDL Line") "viaduct_v0.py:330"))
+          (name "SKiDL Line") "viaduct_v0.py:400"))
       (libsource
         (lib "Sensor")
         (part "BME280"))

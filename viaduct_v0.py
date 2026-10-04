@@ -6,8 +6,13 @@ BME280 on I2C and native USB (no USB-to-serial bridge) protected by a USBLC6-2.
 Every part below is a stock KiCad 10 symbol with a stock KiCad 10 footprint;
 nothing is invented. Run `python viaduct_v0.py` to emit `viaduct_v0.net`.
 
-Datasheets cited in the comments
--------------------------------
+Specifications and datasheets cited in the comments
+---------------------------------------------------
+[TYPEC] Universal Serial Bus Type-C Cable and Connector Specification,
+        Release 1.3, July 14, 2017, USB 3.0 Promoter Group
+        https://www.usb.org/sites/default/files/documents/usb_type-c.zip
+        (free download; the zip contains
+        "USB Type-C/USB Type-C Specification Release 1.3.pdf")
 [ESP]   ESP32-S3-WROOM-1 & ESP32-S3-WROOM-1U Datasheet v1.8, Espressif
         https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf
 [BME]   BME280 Datasheet BST-BME280-DS001-23, Revision 1.23, 01/2022, Bosch Sensortec
@@ -17,8 +22,8 @@ Datasheets cited in the comments
 [LC6]   USBLC6-2 Datasheet DS4260 Rev 7, December 2021, STMicroelectronics
         https://www.st.com/resource/en/datasheet/usblc6-2.pdf
 
-Section/page numbers refer to those exact revisions; they were read out of the
-PDFs, not recalled.
+Section/page/table numbers refer to those exact revisions; they were read out
+of the PDFs, not recalled.
 """
 
 import builtins
@@ -78,7 +83,8 @@ led_a = Net("LED_A")
 j1 = Part(
     "Connector",
     "USB_C_Receptacle_USB2.0_16P",
-    ref="J1", tag="J1",
+    ref="J1",
+    tag="J1",
     value="USB-C",
     footprint="Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal",
 )
@@ -99,16 +105,30 @@ j1["SH"] += gnd
 j1["A8", "B8"] += NC
 
 # CC pull-downs. A USB-C *source* decides whether to turn VBUS on by sensing
-# Rd on CC; with CC floating it sees no sink and never supplies 5 V. Both CC1
-# and CC2 need one because only the contact that happens to mate with the
-# cable's CC wire is active -- which one depends on plug orientation.
-# Rd = 5.1 kohm is the value fixed by the USB Type-C Cable and Connector
-# Specification. NOTE: that specification was not read for this build; 5.1 k
-# is carried over from the design brief. See "unverified" in the report.
-r_cc1 = Part("Device", "R", ref="R1", tag="R1", value="5.1k",
-             footprint="Resistor_SMD:R_0603_1608Metric")
-r_cc2 = Part("Device", "R", ref="R2", tag="R2", value="5.1k",
-             footprint="Resistor_SMD:R_0603_1608Metric")
+# Rd on CC; with CC floating it sees no sink and never supplies 5 V.
+#
+# Two resistors, not one: [TYPEC] Section 4.5.1.2 Figure 4-9 "Sink Functional
+# Model for CC1 and CC2" p.139 -- "The Sink terminates both CC1 and CC2 to GND
+# using pull-down resistors." Stated normatively in Section 4.5.2.2.3.1
+# "Unattached.SNK Requirements" p.152 -- "Both CC1 and CC2 pins shall be
+# independently terminated to ground through Rd." Only the contact that mates
+# with the cable's CC wire is live, and which one that is depends on plug
+# orientation, so both must be populated.
+#
+# Rd = 5.1 kohm from [TYPEC] Section 4.11.1 "Termination Parameters",
+# Table 4-21 "Sink CC Termination (Rd) Requirements" p.197, which gives three
+# legal Rd implementations: a 1.1 V +/-20% clamp, a 5.1 kohm +/-20% resistor to
+# GND, and a 5.1 kohm +/-10% resistor to GND. Only the +/-10% row has "Can
+# detect power capability? Yes", so a 1% or 5% part is required if the firmware
+# is ever to read the source's current advertisement off CC. This board uses a
+# resistor rather than the clamp because the clamp inhibits USB PD (Table 4-21
+# note 1).
+r_cc1 = Part(
+    "Device", "R", ref="R1", tag="R1", value="5.1k", footprint="Resistor_SMD:R_0603_1608Metric"
+)
+r_cc2 = Part(
+    "Device", "R", ref="R2", tag="R2", value="5.1k", footprint="Resistor_SMD:R_0603_1608Metric"
+)
 j1["A5"] += cc1
 r_cc1[1] += cc1
 r_cc1[2] += gnd
@@ -126,7 +146,8 @@ r_cc2[2] += gnd
 u1 = Part(
     "Power_Protection",
     "USBLC6-2SC6",
-    ref="U1", tag="U1",
+    ref="U1",
+    tag="U1",
     value="USBLC6-2SC6",
     footprint="Package_TO_SOT_SMD:SOT-666",
 )
@@ -145,7 +166,8 @@ u1[5] += vbus  # VBUS -- [LC6] p.1 Features, "Protects VBUS"
 u2 = Part(
     "Regulator_Linear",
     "AP2112K-3.3",
-    ref="U2", tag="U2",
+    ref="U2",
+    tag="U2",
     value="AP2112K-3.3",
     footprint="Package_TO_SOT_SMD:SOT-23-5",
 )
@@ -165,10 +187,12 @@ u2[4] += NC
 # Circuit": CIN = 1 uF, COUT = 1 uF. Note 4 of that figure: "It is recommended
 # to use X7R or X5R dielectric capacitor if 1.0 uF ceramic capacitor is
 # selected as input/output capacitors."
-c_in = Part("Device", "C", ref="C1", tag="C1", value="1uF X5R",
-            footprint="Capacitor_SMD:C_0603_1608Metric")
-c_out = Part("Device", "C", ref="C2", tag="C2", value="1uF X5R",
-             footprint="Capacitor_SMD:C_0603_1608Metric")
+c_in = Part(
+    "Device", "C", ref="C1", tag="C1", value="1uF X5R", footprint="Capacitor_SMD:C_0603_1608Metric"
+)
+c_out = Part(
+    "Device", "C", ref="C2", tag="C2", value="1uF X5R", footprint="Capacitor_SMD:C_0603_1608Metric"
+)
 c_in[1] += vbus
 c_in[2] += gnd
 c_out[1] += v3v3
@@ -190,7 +214,8 @@ c_out[2] += gnd
 u3 = Part(
     "RF_Module",
     "ESP32-S3-WROOM-1",
-    ref="U3", tag="U3",
+    ref="U3",
+    tag="U3",
     value="ESP32-S3-WROOM-1",
     footprint="RF_Module:ESP32-S3-WROOM-1",
 )
@@ -205,10 +230,17 @@ u3[2] += v3v3  # pin 2  3V3, "Power supply"
 # 3V3 decoupling copied from [ESP] Figure 9-1 Peripheral Schematics (p.41),
 # which shows exactly two capacitors on the VDD33 rail: C1 = 22 uF bulk and
 # C3 = 0.1 uF high-frequency.
-c_bulk = Part("Device", "C", ref="C3", tag="C3", value="22uF X5R",
-              footprint="Capacitor_SMD:C_0603_1608Metric")
-c_hf = Part("Device", "C", ref="C4", tag="C4", value="100nF X7R",
-            footprint="Capacitor_SMD:C_0603_1608Metric")
+c_bulk = Part(
+    "Device", "C", ref="C3", tag="C3", value="22uF X5R", footprint="Capacitor_SMD:C_0603_1608Metric"
+)
+c_hf = Part(
+    "Device",
+    "C",
+    ref="C4",
+    tag="C4",
+    value="100nF X7R",
+    footprint="Capacitor_SMD:C_0603_1608Metric",
+)
 c_bulk[1] += v3v3
 c_bulk[2] += gnd
 c_hf[1] += v3v3
@@ -223,10 +255,12 @@ c_hf[2] += gnd
 # usually R = 10 kohm and C = 1 uF." Figure 9-1 draws this as R1 from VDD33 to
 # EN and C2 from EN to GND, which is what is built here.
 u3[3] += en
-r_en = Part("Device", "R", ref="R3", tag="R3", value="10k",
-            footprint="Resistor_SMD:R_0603_1608Metric")
-c_en = Part("Device", "C", ref="C5", tag="C5", value="1uF X5R",
-            footprint="Capacitor_SMD:C_0603_1608Metric")
+r_en = Part(
+    "Device", "R", ref="R3", tag="R3", value="10k", footprint="Resistor_SMD:R_0603_1608Metric"
+)
+c_en = Part(
+    "Device", "C", ref="C5", tag="C5", value="1uF X5R", footprint="Capacitor_SMD:C_0603_1608Metric"
+)
 r_en[1] += v3v3
 r_en[2] += en
 c_en[1] += en
@@ -234,8 +268,14 @@ c_en[2] += gnd
 
 # Reset button: shorting EN to GND drops the chip into reset; releasing it lets
 # the RC bring EN back up. Figure 9-1 shows the same button (SW1) on EN.
-sw_rst = Part("Switch", "SW_Push", ref="SW1", tag="SW1", value="RESET",
-              footprint="Button_Switch_SMD:SW_Push_1P1T_NO_CK_KMR2")
+sw_rst = Part(
+    "Switch",
+    "SW_Push",
+    ref="SW1",
+    tag="SW1",
+    value="RESET",
+    footprint="Button_Switch_SMD:SW_Push_1P1T_NO_CK_KMR2",
+)
 sw_rst[1] += en
 sw_rst[2] += gnd
 
@@ -249,12 +289,19 @@ sw_rst[2] += gnd
 # level deterministic rather than relying on the internal weak pull-up, and the
 # button pulls GPIO0 to 0 to enter download boot.
 u3[27] += boot
-r_boot = Part("Device", "R", ref="R4", tag="R4", value="10k",
-              footprint="Resistor_SMD:R_0603_1608Metric")
+r_boot = Part(
+    "Device", "R", ref="R4", tag="R4", value="10k", footprint="Resistor_SMD:R_0603_1608Metric"
+)
 r_boot[1] += v3v3
 r_boot[2] += boot
-sw_boot = Part("Switch", "SW_Push", ref="SW2", tag="SW2", value="BOOT",
-               footprint="Button_Switch_SMD:SW_Push_1P1T_NO_CK_KMR2")
+sw_boot = Part(
+    "Switch",
+    "SW_Push",
+    ref="SW2",
+    tag="SW2",
+    value="BOOT",
+    footprint="Button_Switch_SMD:SW_Push_1P1T_NO_CK_KMR2",
+)
 sw_boot[1] += boot
 sw_boot[2] += gnd
 
@@ -310,14 +357,37 @@ u3[17] += scl  # IO9  -> SCL
 #          bootloader. It also leaves ROM message printing enabled.
 # GPIO0 is the exception: it gets an explicit pull-up and a button, above.
 for pin in (
-    4, 5, 6, 7, 8, 9, 10, 11,  # IO4 IO5 IO6 IO7 IO15 IO16 IO17 IO18
-    15, 16,                    # IO3 IO46  -- strapping, left floating on purpose
-    18, 19, 20, 21, 22, 23,    # IO10 IO11 IO12 IO13 IO14 IO21
-    24, 25, 26,                # IO47 IO48 IO45
-    28, 29, 30, 31,            # IO35 IO36 IO37 IO38
-    32, 33, 34, 35,            # IO39 IO40 IO41 IO42 (JTAG)
-    36, 37,                    # RXD0 TXD0 (UART0)
-    38, 39,                    # IO2 IO1
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,  # IO4 IO5 IO6 IO7 IO15 IO16 IO17 IO18
+    15,
+    16,  # IO3 IO46  -- strapping, left floating on purpose
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,  # IO10 IO11 IO12 IO13 IO14 IO21
+    24,
+    25,
+    26,  # IO47 IO48 IO45
+    28,
+    29,
+    30,
+    31,  # IO35 IO36 IO37 IO38
+    32,
+    33,
+    34,
+    35,  # IO39 IO40 IO41 IO42 (JTAG)
+    36,
+    37,  # RXD0 TXD0 (UART0)
+    38,
+    39,  # IO2 IO1
 ):
     u3[pin] += NC
 
@@ -330,7 +400,8 @@ for pin in (
 u4 = Part(
     "Sensor",
     "BME280",
-    ref="U4", tag="U4",
+    ref="U4",
+    tag="U4",
     value="BME280",
     footprint="Package_LGA:Bosch_LGA-8_2.5x2.5mm_P0.65mm_ClockwisePinNumbering",
 )
@@ -364,10 +435,22 @@ u4[4] += scl  # SCK / SCL
 
 # Supply decoupling. [BME] Figure 17 notes (p.39): "The recommended value for
 # C1, C2 is 100 nF" -- one on VDD, one on VDDIO.
-c_vdd = Part("Device", "C", ref="C6", tag="C6", value="100nF X7R",
-             footprint="Capacitor_SMD:C_0603_1608Metric")
-c_vddio = Part("Device", "C", ref="C7", tag="C7", value="100nF X7R",
-               footprint="Capacitor_SMD:C_0603_1608Metric")
+c_vdd = Part(
+    "Device",
+    "C",
+    ref="C6",
+    tag="C6",
+    value="100nF X7R",
+    footprint="Capacitor_SMD:C_0603_1608Metric",
+)
+c_vddio = Part(
+    "Device",
+    "C",
+    ref="C7",
+    tag="C7",
+    value="100nF X7R",
+    footprint="Capacitor_SMD:C_0603_1608Metric",
+)
 c_vdd[1] += v3v3
 c_vdd[2] += gnd
 c_vddio[1] += v3v3
@@ -377,10 +460,12 @@ c_vddio[2] += gnd
 # resistors R1, R2 should be based on the interface timing and the bus load; a
 # normal value is 4.7 kohm." The BME280 is the only device on the bus, so the
 # nominal value applies.
-r_sda = Part("Device", "R", ref="R5", tag="R5", value="4.7k",
-             footprint="Resistor_SMD:R_0603_1608Metric")
-r_scl = Part("Device", "R", ref="R6", tag="R6", value="4.7k",
-             footprint="Resistor_SMD:R_0603_1608Metric")
+r_sda = Part(
+    "Device", "R", ref="R5", tag="R5", value="4.7k", footprint="Resistor_SMD:R_0603_1608Metric"
+)
+r_scl = Part(
+    "Device", "R", ref="R6", tag="R6", value="4.7k", footprint="Resistor_SMD:R_0603_1608Metric"
+)
 r_sda[1] += v3v3
 r_sda[2] += sda
 r_scl[1] += v3v3
@@ -394,10 +479,10 @@ r_scl[2] += scl
 # symbol with no forward voltage attached. 1 kohm gives roughly (3.3 - 2.0)/1k
 # = 1.3 mA for a typical 2.0 V red LED -- visible, and small against the
 # current budget above. Re-pick it once a real LED part number is chosen.
-d1 = Part("Device", "LED", ref="D1", tag="D1", value="PWR",
-          footprint="LED_SMD:LED_0603_1608Metric")
-r_led = Part("Device", "R", ref="R7", tag="R7", value="1k",
-             footprint="Resistor_SMD:R_0603_1608Metric")
+d1 = Part("Device", "LED", ref="D1", tag="D1", value="PWR", footprint="LED_SMD:LED_0603_1608Metric")
+r_led = Part(
+    "Device", "R", ref="R7", tag="R7", value="1k", footprint="Resistor_SMD:R_0603_1608Metric"
+)
 r_led[1] += v3v3
 r_led[2] += led_a
 d1[2] += led_a  # A
