@@ -29,6 +29,70 @@ Each accepts `--help`. Exit codes: `0` pass, `1` violations, `2` bad input, `3` 
 (nothing was checked — not a pass). See [CLAUDE.md](CLAUDE.md) for how the pieces fit together
 and which checks atopile already performs on its own.
 
+## SKiDL spike (branch `spike/skidl`)
+
+atopile's package registry host (`packages.atopileapi.com`) now returns NXDOMAIN and its CLI is
+in maintenance mode, so this branch evaluates [SKiDL](https://devbisme.github.io/skidl/) —
+Python as the hardware description language — as a replacement front end.
+
+`viaduct_v0.py` is the first real circuit: an ESP32-S3-WROOM-1 with a BME280 on I²C, USB-C
+power and native USB, an AP2112K-3.3 LDO and a USBLC6-2 ESD array. Every part is a stock
+KiCad 10 symbol with a stock KiCad 10 footprint, and every pin assignment carries a datasheet
+citation in a comment.
+
+```bash
+uv run python viaduct_v0.py    # runs ERC, writes viaduct_v0.net
+```
+
+It needs no shell setup: the script sets `KICAD10_SYMBOL_DIR=/usr/share/kicad/symbols` itself
+before importing SKiDL (SKiDL reads that variable at import time and silently searches nothing
+if it is unset). Override it by exporting a different value first.
+
+Outputs:
+
+| File | Committed | Purpose |
+| --- | --- | --- |
+| `viaduct_v0.net` | yes | KiCad netlist — the handoff to the PCB editor |
+| `viaduct_v0_sklib.py` | yes | SKiDL's snapshot of every symbol used (pins, types, footprints) |
+| `viaduct_v0.erc`, `viaduct_v0.log` | no (gitignored) | SKiDL drops these in the CWD on every run |
+
+### Importing the netlist into KiCad on Windows
+
+There is no schematic. SKiDL's `generate_schematic()` fails on this design with
+`RoutingFailure`, so the netlist goes straight into the PCB editor — the same workflow atopile
+used, and the same consequence: `kicad-cli sch erc` has nothing to check, so
+`scripts/erc.py` still exits 3. SKiDL's own `ERC()` is the electrical check, and it runs on
+every invocation of the script above.
+
+The repo lives on the WSL2 filesystem, reachable from Windows at
+`\\wsl.localhost\Ubuntu\home\<user>\projects\Viaduct`. KiCad on Windows can open that path
+directly; copy the file to a local drive first if the UNC path is slow.
+
+1. Open **KiCad → PCB Editor** (standalone — do *not* open it through a project, since there
+   is no `.kicad_sch` to be out of sync with).
+2. **File → Import → Netlist…**
+3. Set *Netlist file* to `viaduct_v0.net`.
+4. Options that matter for a schematic-less flow:
+   - *Match Method*: **Keep existing symbol to footprint associations** → change to
+     **Re-associate footprints by reference**. References (`U1`…`R7`) are the only stable key
+     here; there are no schematic timestamps to match on.
+   - *Footprint Assignment*: **Replace footprint with those specified in netlist** — the
+     netlist is the source of truth for footprints.
+   - *Unconnected Tracks*: **Keep** on the first import (nothing is routed yet).
+   - *Unmatched Footprints*: **Delete** only once you are sure the board holds nothing
+     hand-placed that the netlist does not know about.
+5. **Update PCB**. All 22 footprints land in a stack at the origin with a ratsnest; drag them
+   apart and route by hand.
+
+Re-running `viaduct_v0.py` produces a byte-identical netlist apart from the date stamp (every
+part carries an explicit `tag=`, so SKiDL does not invent random ones), which is what makes a
+second import an update rather than a pile of duplicates.
+
+The footprint libraries must be registered in KiCad's **Preferences → Manage Footprint
+Libraries** under the same nicknames the netlist uses (`Resistor_SMD`, `Capacitor_SMD`,
+`RF_Module`, `Connector_USB`, `Package_TO_SOT_SMD`, `Package_LGA`, `Button_Switch_SMD`,
+`LED_SMD`). A stock KiCad 10 install has all of them in the global table already.
+
 ## Windows setup
 
 **Use WSL2, not native Windows.** Install Ubuntu (`wsl --install -d Ubuntu`), then inside it

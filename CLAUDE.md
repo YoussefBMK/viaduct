@@ -9,15 +9,20 @@ fabrication output; `benchmarks/` times the pipeline.
 `origin` points at it only so the history could be carried over. Everything runs under Linux;
 see "Why WSL2" below.
 
-**No real circuit has been written yet.** `main.ato` is a smoke-test fixture (two bridged
-test points) whose only job is to give `ato build`, the wrappers and the benchmarks something
-to chew on. Replace it when actual circuit work starts.
+**`main.ato` is still a smoke-test fixture** (two bridged test points) whose only job is to
+give `ato build`, the wrappers and the benchmarks something to chew on.
+
+**On branch `spike/skidl`, the real circuit lives in `viaduct_v0.py` and is described in
+SKiDL, not atopile.** atopile's package registry was decommissioned (see below), so that
+branch evaluates SKiDL as the replacement front end. The two front ends do not share
+anything: `viaduct_v0.py` emits a KiCad netlist, `main.ato` emits a `.kicad_pcb`.
 
 ## Layout
 
 | Path | Contents |
 | --- | --- |
-| `main.ato` | Entry point / smoke-test fixture — `paths.src` is the repo root |
+| `main.ato` | atopile entry point / smoke-test fixture — `paths.src` is the repo root |
+| `viaduct_v0.py` | SKiDL circuit (branch `spike/skidl`) — ERC + netlist, no schematic |
 | `layouts/default/` | KiCad layout for the `default` build; created on first build |
 | `build/` | Build artifacts, reports and fab output — all gitignored |
 | `scripts/` | `kicad-cli` wrappers (`erc`, `drc`, `gerbers`) |
@@ -53,6 +58,37 @@ same reason `scripts/drc.py` leaves `--schematic-parity` off by default.
 parts database (a `Resistor` with a `resistance`, etc.) makes `ato build` demand
 `ato auth login` and a network round-trip. That is why `main.ato` contains only `TestPoint`s —
 a pick-free fixture is what keeps `ato build` runnable offline and unauthenticated in CI.
+
+**atopile's package registry is gone.** `services.packages.url` defaults to
+`https://packages.atopileapi.com`, which returns an authoritative NXDOMAIN (confirmed via
+Cloudflare DNS-over-HTTPS, bypassing the local resolver; the sibling `legacy.atopileapi.com`
+still resolves). `ato add <pkg>` therefore fails with
+`ConnectError: [SSL: UNEXPECTED_EOF_WHILE_READING]`, which looks like a TLS or VPN problem but
+is not. The dangerous part is `atopile/model/packages.py:search_registry_packages`, which
+wraps the lookup in `except Exception: return []` — **a dead network is indistinguishable
+from "no such package"**. Never treat an empty registry search as evidence that a part does
+not exist.
+
+**SKiDL gotchas** (branch `spike/skidl`):
+
+- Symbol libraries are found *only* via `KICAD10_SYMBOL_DIR`. Unset, SKiDL searches nothing
+  and reports missing parts rather than a missing path. `viaduct_v0.py` sets it internally.
+- SKiDL cannot see footprint libraries at all — it warns `fp-lib-table file was not found.
+  Component footprints are not available.` on every run and validates no footprint reference.
+  Footprint strings in `viaduct_v0.py` were each checked against the `.kicad_mod` files on
+  disk by hand, including pad-name-vs-pin-number correspondence for the symbols that ship
+  with an empty footprint field (`Device:R`, `Device:C`, `Device:LED`, `Switch:SW_Push`,
+  `Connector:USB_C_Receptacle_USB2.0_16P`).
+- `from skidl import NC` raises `ImportError`. SKiDL 2.3.0 injects `NC` and `default_circuit`
+  into `builtins` instead of exporting them.
+- Symbol and footprint libraries are **separate namespaces with colliding names**.
+  `Button_Switch_SMD` is a footprint library and contains no symbols; the push-button symbol
+  is `Switch:SW_Push`.
+- Parts without an explicit `tag=` get a *random* tag each run, so the netlist churns and a
+  re-import into KiCad creates duplicates. Every part in `viaduct_v0.py` sets `tag=`.
+- `generate_schematic()` fails on this design with `RoutingFailure`; `generate_svg()` needs
+  the external `netlistsvg` npm package. Only `generate_netlist()` and `generate_xml()` work.
+- SKiDL writes `<script>.erc` and `<script>.log` into the CWD on every run — both gitignored.
 
 **Why WSL2.** atopile's Windows wheels ship a Zig-built native core compiled for the build
 machine's CPU, which includes AVX-512 instructions — see

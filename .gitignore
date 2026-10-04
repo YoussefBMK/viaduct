@@ -12,6 +12,10 @@ __pycache__/
 # Benchmarks
 benchmarks/results/
 
+# SKiDL writes <script>.erc and <script>.log into the CWD on every run.
+*.erc
+*.log
+
 # KiCad
 *-backups/
 *.kicad_prl
