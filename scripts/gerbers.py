@@ -1,8 +1,8 @@
-"""Export fabrication Gerbers and Excellon drill files for a build, optionally zipped.
+"""Export fabrication Gerbers and Excellon drill files for a board, optionally zipped.
 
-atopile's `mfg-data` build target already produces a <build>.gerber.zip. Use this wrapper when
-you need to control the layer list, drill format or plot options directly -- e.g. matching a
-specific fab house's requirements.
+Wraps `kicad-cli pcb export` so the layer list, drill format and plot options are explicit
+and reproducible -- e.g. matching a specific fab house's requirements -- rather than coming
+from whatever happens to be stored in the board file.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from ._kicad import DEFAULT_BUILD, PROJECT_ROOT, KicadError, find_pcb, run
+from ._kicad import DEFAULT_BOARD, PROJECT_ROOT, KicadError, find_pcb, run
 
 # Two-layer default. Override with --layers for 4+ layer stackups, e.g.
 # F.Cu,In1.Cu,In2.Cu,B.Cu,F.Paste,...
@@ -21,7 +21,7 @@ DEFAULT_LAYERS = "F.Cu,B.Cu,F.Paste,B.Paste,F.Silkscreen,B.Silkscreen,F.Mask,B.M
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("-b", "--build", default=DEFAULT_BUILD, help="atopile build target name")
+    parser.add_argument("-b", "--board", default=DEFAULT_BOARD, help="board name under layouts/")
     parser.add_argument("--pcb", type=Path, help="explicit .kicad_pcb path")
     parser.add_argument("-o", "--output", type=Path, help="output directory for the plot files")
     parser.add_argument(
@@ -49,7 +49,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        pcb = args.pcb or find_pcb(args.build)
+        pcb = args.pcb or find_pcb(args.board)
     except KicadError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -58,7 +58,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: no such board: {pcb}", file=sys.stderr)
         return 2
 
-    out_dir = args.output or PROJECT_ROOT / "build" / "fab" / args.build
+    out_dir = args.output or PROJECT_ROOT / "build" / "fab" / args.board
     if out_dir.exists():
         shutil.rmtree(out_dir)
     out_dir.mkdir(parents=True)

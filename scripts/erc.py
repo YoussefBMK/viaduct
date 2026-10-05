@@ -1,9 +1,17 @@
-"""Run KiCad's Electrical Rules Check over a build's schematic.
+"""Run SKiDL's Electrical Rules Check over the design.
 
-Caveat: atopile builds do not produce a .kicad_sch. atopile runs its own graph-level ERC
-during `ato build` (shorted interfaces, undefined power voltages, incompatible connections),
-which is the check that actually covers an .ato design. This wrapper is only useful when a
-schematic exists alongside the layout -- e.g. one authored or imported by hand.
+The design is the SKiDL script, not a schematic -- `generate_schematic()` fails with a
+RoutingFailure on this board, so there is no .kicad_sch for `kicad-cli sch erc` to read.
+SKiDL's own ERC is the check that covers the circuit: it flags unconnected pins, pin-type
+conflicts, nets with no driver, and nets with multiple drivers.
+
+The design script runs its own ERC under `if __name__ == "__main__"`. This wrapper exists so
+CI can run the same check with a machine-readable report and a meaningful exit code.
+
+    uv run python -m scripts.erc
+    uv run python -m scripts.erc --warnings-are-errors --json
+
+Exit 0 clean, 1 violations, 2 bad input.
 """
 
 from __future__ import annotations
@@ -13,92 +21,66 @@ import json
 import sys
 from pathlib import Path
 
-from ._kicad import DEFAULT_BUILD, KicadError, find_sch, report_path, run
-
-
-def summarize(report: Path) -> int:
-    """Print a per-severity tally from a JSON ERC report. Returns the violation count."""
-    data = json.loads(report.read_text(encoding="utf-8"))
-    violations = [v for sheet in data.get("sheets", []) for v in sheet.get("violations", [])]
-
-    counts: dict[str, int] = {}
-    for violation in violations:
-        severity = violation.get("severity", "unknown")
-        counts[severity] = counts.get(severity, 0) + 1
-
-    if counts:
-        summary = ", ".join(f"{n} {sev}" for sev, n in sorted(counts.items()))
-        print(f"ERC: {summary} -- see {report}")
-    else:
-        print(f"ERC: clean -- see {report}")
-    return len(violations)
+from ._kicad import DEFAULT_DESIGN, PROJECT_ROOT, load_design, report_path
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("-b", "--build", default=DEFAULT_BUILD, help="atopile build target name")
-    parser.add_argument("--sch", type=Path, help="explicit .kicad_sch path")
+    parser.add_argument(
+        "--design",
+        type=Path,
+        default=PROJECT_ROOT / DEFAULT_DESIGN,
+        help=f"SKiDL design to check (default: {DEFAULT_DESIGN})",
+    )
     parser.add_argument(
         "--warnings-are-errors",
         action="store_true",
         help="fail on warnings too, not just errors",
     )
-    parser.add_argument(
-        "--allow-missing",
-        action="store_true",
-        help="exit 0 instead of failing when no schematic exists (useful in CI)",
-    )
+    parser.add_argument("--json", action="store_true", help="also write a JSON report")
     args = parser.parse_args(argv)
 
-    try:
-        schematic = args.sch or find_sch(args.build)
-    except KicadError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+    if not args.design.is_file():
+        print(f"error: no such design: {args.design}", file=sys.stderr)
         return 2
 
-    if args.sch is not None and not args.sch.is_file():
-        print(f"error: no such schematic: {args.sch}", file=sys.stderr)
-        return 2
+    load_design(args.design)
 
-    if schematic is None:
-        message = (
-            f"ERC NOT RUN (not applicable): no .kicad_sch found for build '{args.build}'. "
-            "This is NOT a pass -- nothing was checked. atopile does not generate a "
-            "schematic; the ERC that `ato build` runs is the one that covers an .ato design."
+    import builtins
+
+    from skidl import erc_logger
+
+    builtins.default_circuit.ERC()
+
+    # ERC() resets these counters before it runs, so they describe this run only.
+    # SKiDL splits each severity into a traced and a "bare" (untraced) variant.
+    errors = erc_logger.error.count + erc_logger.bare_error.count
+    warnings = erc_logger.warning.count + erc_logger.bare_warning.count
+
+    # SKiDL mirrors every ERC message into <script>.erc next to the design.
+    log = args.design.with_suffix(".erc")
+    detail = log.read_text(encoding="utf-8", errors="replace") if log.is_file() else ""
+
+    print(f"ERC: {errors} error(s), {warnings} warning(s)")
+
+    if args.json:
+        report = report_path("erc", ".json")
+        report.write_text(
+            json.dumps(
+                {
+                    "design": str(args.design),
+                    "errors": errors,
+                    "warnings": warnings,
+                    "log": detail,
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
         )
-        if args.allow_missing:
-            print(f"{message} Treated as success because --allow-missing was given.")
-            return 0
-        print(message, file=sys.stderr)
-        return 3
+        print(f"Report: {report}")
 
-    report = report_path(f"erc-{args.build}", ".json")
-    severity = ["--severity-error"]
-    if args.warnings_are_errors:
-        severity.append("--severity-warning")
-
-    result = run(
-        [
-            "sch",
-            "erc",
-            str(schematic),
-            "--output",
-            str(report),
-            "--format",
-            "json",
-            "--units",
-            "mm",
-            *severity,
-            "--exit-code-violations",
-        ]
-    )
-
-    if not report.is_file():
-        print(f"error: kicad-cli produced no report (exit {result.returncode})", file=sys.stderr)
-        return result.returncode or 2
-
-    violations = summarize(report)
-    return 1 if violations else 0
+    return 1 if errors or (warnings and args.warnings_are_errors) else 0
 
 
 if __name__ == "__main__":

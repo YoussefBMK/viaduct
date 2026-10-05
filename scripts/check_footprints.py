@@ -26,13 +26,10 @@ import argparse
 import json
 import os
 import re
-import runpy
 import sys
 from pathlib import Path
 
-from ._kicad import PROJECT_ROOT, KicadError, report_path
-
-DEFAULT_DESIGN = "viaduct_v0.py"
+from ._kicad import DEFAULT_DESIGN, PROJECT_ROOT, KicadError, load_design, report_path
 
 # Pads carrying no number (mechanical, thermal relief, castellation keep-outs) are not
 # electrical connections, so they are never expected to match a pin.
@@ -117,19 +114,6 @@ def pad_numbers(module: Path) -> set[str]:
     return pads
 
 
-def load_parts(design: Path) -> list:
-    """Execute the design script and hand back the parts it created.
-
-    run_name is deliberately not "__main__", so the script defines the circuit without also
-    running ERC and regenerating the netlist as a side effect.
-    """
-    sys.path.insert(0, str(design.parent))
-    runpy.run_path(str(design), run_name="scripts.check_footprints.design")
-    import builtins
-
-    return list(builtins.default_circuit.parts)
-
-
 def check(design: Path) -> tuple[list[str], list[str]]:
     """Return (errors, notes) for every part in the design."""
     root = footprint_dir()
@@ -137,7 +121,7 @@ def check(design: Path) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     notes: list[str] = []
 
-    for part in sorted(load_parts(design), key=lambda p: str(p.ref)):
+    for part in sorted(load_design(design), key=lambda p: str(p.ref)):
         ref = part.ref
         footprint = (getattr(part, "footprint", "") or "").strip()
 

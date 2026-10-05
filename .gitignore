@@ -1,7 +1,5 @@
-# atopile
+# Generated reports and fab output
 build/
-manufacturing/
-.ato/
 
 # Python
 __pycache__/

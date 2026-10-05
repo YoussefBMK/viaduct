@@ -1,8 +1,8 @@
-"""Run KiCad's Design Rules Check over a build's layout.
+"""Run KiCad's Design Rules Check over the board layout.
 
-`ato build` already runs DRC internally, but only reports it. This wrapper gives you a
-standalone, CI-friendly invocation with a JSON report and a nonzero exit on violations.
-Schematic parity is off by default because atopile produces no schematic to compare against.
+A CI-friendly invocation with a JSON report and a nonzero exit on violations. Schematic
+parity is off by default: the design lives in a SKiDL script, so there is no .kicad_sch to
+compare the board against.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import json
 import sys
 from pathlib import Path
 
-from ._kicad import DEFAULT_BUILD, KicadError, find_pcb, report_path, run
+from ._kicad import DEFAULT_BOARD, KicadError, find_pcb, report_path, run
 
 
 def summarize(report: Path) -> int:
@@ -42,7 +42,7 @@ def summarize(report: Path) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("-b", "--build", default=DEFAULT_BUILD, help="atopile build target name")
+    parser.add_argument("-b", "--board", default=DEFAULT_BOARD, help="board name under layouts/")
     parser.add_argument("--pcb", type=Path, help="explicit .kicad_pcb path")
     parser.add_argument(
         "--warnings-are-errors",
@@ -62,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        pcb = args.pcb or find_pcb(args.build)
+        pcb = args.pcb or find_pcb(args.board)
     except KicadError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -71,7 +71,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: no such board: {pcb}", file=sys.stderr)
         return 2
 
-    report = report_path(f"drc-{args.build}", ".json")
+    report = report_path(f"drc-{args.board}", ".json")
     flags = ["--severity-error"]
     if args.warnings_are_errors:
         flags.append("--severity-warning")

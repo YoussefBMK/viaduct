@@ -5,6 +5,9 @@ including interpreter startup and kicad-cli process spawn.
 
     uv run python -m benchmarks.bench_build --repeat 3
     uv run python -m benchmarks.bench_build --stages drc gerbers
+
+The drc and gerbers stages need a .kicad_pcb and are therefore excluded by default; ask for
+them explicitly once a board exists.
 """
 
 from __future__ import annotations
@@ -23,11 +26,17 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = Path(__file__).resolve().parent / "results"
 
 STAGES: dict[str, list[str]] = {
-    "ato-build": ["ato", "build"],
-    "erc": [sys.executable, "-m", "scripts.erc", "--allow-missing"],
+    "netlist": [sys.executable, "viaduct_v0.py"],
+    "erc": [sys.executable, "-m", "scripts.erc"],
+    "check-footprints": [sys.executable, "-m", "scripts.check_footprints"],
     "drc": [sys.executable, "-m", "scripts.drc"],
     "gerbers": [sys.executable, "-m", "scripts.gerbers"],
 }
+
+# Stages that need a .kicad_pcb, which only exists once the netlist has been imported into
+# KiCad by hand. Timing them before that measures the "no such board" error path, not a
+# build, so they are opt-in rather than part of the default set.
+NEEDS_BOARD = ("drc", "gerbers")
 
 
 def time_stage(command: list[str], repeat: int) -> dict[str, object]:
@@ -59,8 +68,8 @@ def main(argv: list[str] | None = None) -> int:
         "--stages",
         nargs="+",
         choices=sorted(STAGES),
-        default=sorted(STAGES),
-        help="which stages to time",
+        default=[name for name in STAGES if name not in NEEDS_BOARD],
+        help=f"stages to time (default: all but {', '.join(NEEDS_BOARD)}, which need a board)",
     )
     parser.add_argument("-o", "--output", type=Path, help="write JSON results here")
     args = parser.parse_args(argv)

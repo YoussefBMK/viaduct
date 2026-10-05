@@ -1,8 +1,9 @@
-"""Shared plumbing for the kicad-cli wrappers: locating the binary and the build artifacts."""
+"""Shared plumbing for the scripts: locating kicad-cli, the board file, and the design."""
 
 from __future__ import annotations
 
 import os
+import runpy
 import shutil
 import subprocess
 import sys
@@ -10,10 +11,11 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 LAYOUTS_DIR = PROJECT_ROOT / "layouts"
-BUILDS_DIR = PROJECT_ROOT / "build" / "builds"
 REPORTS_DIR = PROJECT_ROOT / "build" / "reports"
 
-DEFAULT_BUILD = "default"
+# The SKiDL script that defines the circuit, and the board name derived from it.
+DEFAULT_DESIGN = "viaduct_v0.py"
+DEFAULT_BOARD = "viaduct_v0"
 
 
 class KicadError(RuntimeError):
@@ -63,50 +65,46 @@ def run(args: list[str], *, check: bool = False) -> subprocess.CompletedProcess[
     return result
 
 
-def find_pcb(build: str = DEFAULT_BUILD) -> Path:
-    """Return the .kicad_pcb for a build target.
+def find_pcb(board: str = DEFAULT_BOARD) -> Path:
+    """Return the .kicad_pcb for a board.
 
-    `ato build` edits the layout in place under layouts/<build>/, so that is the live board.
-    The copy under build/builds/<build>/ only exists once the mfg-data target has run.
+    There is no scripted netlist-to-board path -- `kicad-cli pcb import` only converts
+    foreign PCB formats, not netlists -- so the board file is created once by hand in
+    KiCad's PCB Editor and then kept in sync by re-importing the netlist. See the README.
     """
     candidates = [
-        LAYOUTS_DIR / build / f"{build}.kicad_pcb",
-        BUILDS_DIR / build / f"{build}.kicad_pcb",
+        LAYOUTS_DIR / board / f"{board}.kicad_pcb",
+        LAYOUTS_DIR / f"{board}.kicad_pcb",
     ]
     for candidate in candidates:
         if candidate.is_file():
             return candidate
 
-    loose = sorted((LAYOUTS_DIR / build).glob("*.kicad_pcb"))
+    loose = sorted(LAYOUTS_DIR.glob("*/*.kicad_pcb")) + sorted(LAYOUTS_DIR.glob("*.kicad_pcb"))
     if len(loose) == 1:
         return loose[0]
     if len(loose) > 1:
-        raise KicadError(
-            f"Multiple .kicad_pcb files in {LAYOUTS_DIR / build}; pass --pcb to disambiguate"
-        )
+        raise KicadError(f"Multiple .kicad_pcb files under {LAYOUTS_DIR}; pass --pcb to pick one")
 
     raise KicadError(
-        f"No layout found for build '{build}'. Looked in:\n  "
+        f"No layout found for board '{board}'. Looked in:\n  "
         + "\n  ".join(str(c) for c in candidates)
-        + "\nRun `uv run ato build` first."
+        + f"\nCreate it by importing {DEFAULT_DESIGN.removesuffix('.py')}.net into a new board "
+        "in KiCad's PCB Editor -- see the README."
     )
 
 
-def find_sch(build: str = DEFAULT_BUILD) -> Path | None:
-    """Return a .kicad_sch for a build target, or None.
+def load_design(design: Path) -> list:
+    """Execute a SKiDL design script and hand back the parts it created.
 
-    atopile does not emit a schematic -- it drives the PCB netlist directly -- so this only
-    finds something if a schematic was authored or imported by hand.
+    run_name is deliberately not "__main__", so the script defines the circuit without also
+    running ERC and regenerating the netlist as a side effect.
     """
-    for candidate in (
-        LAYOUTS_DIR / build / f"{build}.kicad_sch",
-        BUILDS_DIR / build / f"{build}.kicad_sch",
-    ):
-        if candidate.is_file():
-            return candidate
+    sys.path.insert(0, str(design.parent))
+    runpy.run_path(str(design), run_name="scripts._kicad.design")
+    import builtins
 
-    loose = sorted((LAYOUTS_DIR / build).glob("*.kicad_sch"))
-    return loose[0] if len(loose) == 1 else None
+    return list(builtins.default_circuit.parts)
 
 
 def report_path(name: str, suffix: str) -> Path:

@@ -1,12 +1,12 @@
 [project]
 name = "viaduct"
 version = "0.1.0"
-description = "Viaduct — atopile hardware project with kicad-cli tooling"
+description = "Viaduct — SKiDL hardware project with kicad-cli tooling"
 readme = "README.md"
-# atopile 0.15.x pins this range; uv will fetch a matching interpreter automatically.
-requires-python = ">=3.14,<3.15"
+# The <3.15 cap was atopile's; SKiDL has no such constraint. The floor stays at 3.14 to
+# match .python-version and the interpreter the lockfile was resolved against.
+requires-python = ">=3.14"
 dependencies = [
-    "atopile>=0.15.9,<0.16",
     "skidl>=2.3.0",
 ]
 
@@ -18,6 +18,9 @@ dev = [
 [tool.ruff]
 line-length = 100
 target-version = "py314"
+# SKiDL rewrites viaduct_v0_sklib.py from scratch on every run, so any fix ruff made here
+# would be reverted by the next build. It is committed for reviewable diffs, not edited.
+extend-exclude = ["viaduct_v0_sklib.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
